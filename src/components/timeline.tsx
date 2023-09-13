@@ -6,9 +6,10 @@ import { DateLines } from './date-lines';
 
 export interface TimelineInterface {
   nodes: TimelineNodeInterface[];
+  nodeInView: string;
 }
 
-export const Timeline = ({ nodes }: TimelineInterface) => {
+export const Timeline = ({ nodes, nodeInView }: TimelineInterface) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const groupRef = useRef<SVGGElement>(null);
   const divRef = useRef<HTMLDivElement>(null);
@@ -29,7 +30,6 @@ export const Timeline = ({ nodes }: TimelineInterface) => {
       id: string;
     }[]
   >( nodes.map((node, i) => {
-    // console.log('nodePosition', i, x)
     return { x: node.interval.start, y: NODE_HEIGHT * i + 10, id: node.id };
   }));
 
@@ -62,11 +62,12 @@ export const Timeline = ({ nodes }: TimelineInterface) => {
 
   const scrollHandler = useCallback((event: any) => {
     const scroll = divRef.current ? Math.abs(divRef.current.getBoundingClientRect().top - divRef.current.offsetTop) : 0;
-    console.log(scroll);
   }, []);
   return (
     <div className=" bg-white w-full h-full overflow-scroll" onScroll={scrollHandler} ref={divRef}>
       <svg width={maxEndTime + 20} height={NODE_HEIGHT * nodes.length + 20} overflow={'auto'} ref={svgRef}>
+        <line x1={200} x2={200} y1={0} y2={NODE_HEIGHT * nodes.length} stroke='blue'/>
+        <foreignObject x={100} y={20} width={200} height={100} ><div className=' h-10 w-full rounded-md flex justify-center items-center bg-sky-400'> Beta Launch</div></foreignObject>
         <g className="h-full w-full" ref={groupRef}>
           {nodes.map((node, i) => (
             <TimelineNode
@@ -81,7 +82,6 @@ export const Timeline = ({ nodes }: TimelineInterface) => {
                 const row = Math.floor(y / NODE_HEIGHT);
                 const draggedNode = nodePositions.find((node) => node.id === id);
                 const newNodePosition = nodePositions.map((nodePosition, i) => {
-                  console.log(nodePosition, draggedNode, i , row, id);
                   if ( Math.floor(nodePosition.y/NODE_HEIGHT) === row) {
                     return { x: nodePosition.x, y: draggedNode?.y ?? 0, id: nodePosition.id };
                   }
@@ -105,6 +105,7 @@ export const Timeline = ({ nodes }: TimelineInterface) => {
 
               //   setNodePositions(newNodePosition);
               // }}
+              nodeToShow={nodeInView}
             />
           ))}
         </g>
