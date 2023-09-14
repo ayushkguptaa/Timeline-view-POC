@@ -1,6 +1,6 @@
 export const LeftNav = ({ nodes, onNodeClick }) => {
   return (
-    <div className="h-full mt-[10px]">
+    <div className="h-full mt-[50px]">
       {nodes.map((node, i) => {
         return (
           <div
