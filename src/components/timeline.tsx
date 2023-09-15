@@ -3,15 +3,16 @@ import * as d3 from 'd3';
 import { TimelineNode, TimelineNodeInterface } from './timeline-node';
 import { BAND_WIDTH, NODE_HEIGHT } from './constants';
 import { parts } from './data';
-import { addDays, addMonths, eachDayOfInterval, eachMonthOfInterval } from 'date-fns';
-import { getMonthsBetweenDates } from '@/utils';
+import { addDays, addMonths, eachDayOfInterval, eachMonthOfInterval, set } from 'date-fns';
+import { getDaysBetweenDates, getMonthsBetweenDates } from '@/utils';
 
 export interface TimelineInterface {
   nodes: TimelineNodeInterface[];
   nodeInView: string;
+  timerange: 'days' | 'months';
 }
 
-export const Timeline = ({ nodes, nodeInView }: TimelineInterface) => {
+export const Timeline = ({ nodes, nodeInView, timerange }: TimelineInterface) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const groupRef = useRef<SVGGElement>(null);
   const divRef = useRef<HTMLDivElement>(null);
@@ -25,8 +26,9 @@ export const Timeline = ({ nodes, nodeInView }: TimelineInterface) => {
       .reduce(function (a, b) {
         return a > b ? a : b;
       });
-    return mx > addMonths(new Date(), 1) ? mx : addMonths(new Date(), 1);
-  }, [nodes]);
+    if (timerange === 'days') return mx > addDays(new Date(), 1) ? mx : addDays(new Date(), 1);
+    else return mx > addMonths(new Date(), 1) ? mx : addMonths(new Date(), 1);
+  }, [nodes, timerange]);
 
   const minStartTime = useMemo(() => {
     return nodes
@@ -36,7 +38,14 @@ export const Timeline = ({ nodes, nodeInView }: TimelineInterface) => {
       });
   }, [nodes]);
 
-  const MAX_WIDTH = BAND_WIDTH * (getMonthsBetweenDates(minStartTime, maxEndTime) + 2);
+  const MAX_WIDTH = useMemo(() => {
+    return (
+      BAND_WIDTH *
+      (timerange === 'days'
+        ? getDaysBetweenDates(minStartTime, maxEndTime)
+        : getMonthsBetweenDates(minStartTime, maxEndTime) + 2)
+    );
+  }, [maxEndTime, minStartTime, timerange]);
 
   const x = useMemo(
     () => d3.scaleLinear().domain([minStartTime, maxEndTime]).range([0, MAX_WIDTH]),
@@ -55,6 +64,16 @@ export const Timeline = ({ nodes, nodeInView }: TimelineInterface) => {
     }),
   );
 
+  useEffect(() => {
+    setNodePositions(
+      nodes.map((node, i) => {
+        return { x: x(node.interval.start) ?? 0, y: NODE_HEIGHT * i + 50, id: node.id };
+      }),
+    );
+  }, [nodes, timerange, x]);
+
+  console.log(nodePositions);
+
   const color = d3.scaleOrdinal(d3.schemeSet2).domain(nodes.map((node) => node.id));
 
   useEffect(() => {
@@ -62,19 +81,35 @@ export const Timeline = ({ nodes, nodeInView }: TimelineInterface) => {
     d3.select(linesRef.current)
       .attr('width', x(maxEndTime) ?? 0 + 20)
       .attr('height', NODE_HEIGHT * nodes.length + 20);
-    eachMonthOfInterval({
-      start: minStartTime,
-      end:
-        maxEndTime > addMonths(minStartTime, Math.floor(10000 / BAND_WIDTH))
-          ? maxEndTime
-          : addMonths(minStartTime, Math.floor(10000 / BAND_WIDTH)),
-    }).forEach((date, i) => {
+    const d3array =
+      timerange === 'days'
+        ? eachDayOfInterval({
+            start: minStartTime,
+            end:
+              maxEndTime > addDays(minStartTime, Math.floor(10000 / BAND_WIDTH))
+                ? maxEndTime
+                : addDays(minStartTime, Math.floor(10000 / BAND_WIDTH)),
+          })
+        : eachMonthOfInterval({
+            start: minStartTime,
+            end:
+              maxEndTime > addMonths(minStartTime, Math.floor(10000 / BAND_WIDTH))
+                ? maxEndTime
+                : addMonths(minStartTime, Math.floor(10000 / BAND_WIDTH)),
+          });
+    d3.selectAll(linesRef.current?.childNodes).remove();
+    d3array.forEach((date, i) => {
       d3.select(linesRef.current)
         .append('text')
         .attr('x', x(date) ?? 0 + 5)
         .attr('y', 15)
         .attr('text-anchor', 'middle')
-        .text(`${date.toLocaleString('default', { month: 'short', year: 'numeric' })}`)
+        .text(
+          `${date.toLocaleString(
+            'default',
+            timerange === 'days' ? { day: 'numeric', month: 'short' } : { month: 'short', year: 'numeric' },
+          )}`,
+        )
         .style('background-color', 'white');
       d3.select(linesRef.current)
         .append('line')
@@ -85,13 +120,10 @@ export const Timeline = ({ nodes, nodeInView }: TimelineInterface) => {
         .attr('stroke', 'black')
         .attr('stroke-dasharray', '5,5');
     });
-  }, [maxEndTime, minStartTime, nodes.length, x]);
+  }, [maxEndTime, minStartTime, nodes.length, timerange, x]);
 
-  const scrollHandler = useCallback((event: any) => {
-    const scroll = divRef.current ? Math.abs(divRef.current.getBoundingClientRect().top - divRef.current.offsetTop) : 0;
-  }, []);
   return (
-    <div className=" bg-white w-full h-full overflow-scroll" onScroll={scrollHandler} ref={divRef}>
+    <div className=" bg-white w-full h-full overflow-scroll" ref={divRef}>
       <svg width={10000} height={NODE_HEIGHT * nodes.length + 50} overflow={'auto'} ref={svgRef}>
         {/* <rect x={0} y={0} height={NODE_HEIGHT * nodes.length + 20} width={x(new Date())} /> */}
         <defs>
@@ -138,7 +170,7 @@ export const Timeline = ({ nodes, nodeInView }: TimelineInterface) => {
                 setNodePositions(newNodePosition);
               }}
               fill={color(node.id)}
-              band={BAND_WIDTH / 30}
+              band={timerange === 'days' ? BAND_WIDTH : BAND_WIDTH / 30}
               nodeToShow={nodeInView}
             />
           ))}

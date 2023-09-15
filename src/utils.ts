@@ -11,3 +11,12 @@ export function getMonthsBetweenDates(startDate, endDate) {
 
   return months;
 }
+
+export const getDaysBetweenDates = (startDate, endDate) => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  const days = (end.getTime() - start.getTime()) / (1000 * 3600 * 24);
+
+  return days;
+}

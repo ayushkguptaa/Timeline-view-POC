@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { use, useCallback, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { NODE_HEIGHT } from './constants';
 
@@ -34,6 +34,8 @@ export const TimelineNode = ({
   const foreignRef = useRef(null);
 
   useEffect(() => setY(y as number), [y]);
+  useEffect(() => setX(x as number), [x]);
+  useEffect(() => setWidth(Math.max(width as number, 100)), [width]);
   useEffect(() => {
     if (nodeToShow === id) {
       const element = d3.select(nodeRef.current).node() as any;
@@ -91,12 +93,14 @@ export const TimelineNode = ({
       <foreignObject x={xstate} y={ystate} width={widthstate} height={NODE_HEIGHT} ref={foreignRef} cursor={'grab'}>
         <div className="flex h-full flex-col mb-1 overflow-y-auto flex-grow">
           <div className={`h-full shrink w-full border border-black bg-red-500`}>{id}</div>
-          {isNaN(interval.end?.getDate()) && <div
-            className="h-full bg-fading-overlay w-40 right-0 absolute transform top-0 bottom-0"
-            style={{
-              background: 'linear-gradient(90deg, transparent, white 100%)',
-            }}
-          />}
+          {isNaN(interval.end?.getDate()) && (
+            <div
+              className="h-full bg-fading-overlay w-40 right-0 absolute transform top-0 bottom-0"
+              style={{
+                background: 'linear-gradient(90deg, transparent, white 100%)',
+              }}
+            />
+          )}
         </div>
       </foreignObject>
 

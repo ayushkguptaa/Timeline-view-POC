@@ -20,6 +20,7 @@ const getNodes = () => {
 
 export default function Home() {
   const [nodeInView, setNodeInView] = React.useState<string>('');
+  const [timerange, setTimerange] = React.useState<'days' | 'months'>('days');
   const currentDate = new Date();
 
   const nodes = parts.map((part) => {
@@ -35,13 +36,15 @@ export default function Home() {
     setNodeInView(id);
   };
   return (
-    <div className='flex-col'>
-      <div className='flex'>
+    <div className="flex-col">
+      <select className="border-2 border-gray-500 rounded-md p-2" onChange={(e) => setTimerange(e.target.value)}>
+        <option value={'days'}>Days</option>
+        <option value={'months'}>Months</option>
+      </select>
+      <div className="flex">
+        <LeftNav nodes={nodes} onNodeClick={onNodeClick} />
+        <Timeline nodes={nodes} nodeInView={nodeInView} timerange={timerange} />
       </div>
-    <div className="flex">
-      <LeftNav nodes={nodes} onNodeClick={onNodeClick} />
-      <Timeline nodes={nodes} nodeInView={nodeInView} />
-    </div>
     </div>
   );
 }
