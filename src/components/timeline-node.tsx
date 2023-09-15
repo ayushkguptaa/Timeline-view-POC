@@ -11,6 +11,7 @@ export interface TimelineNodeInterface extends React.SVGProps<SVGForeignObjectEl
   onRowChange?: (id: string, row: number, event: any) => void;
   nodeToShow?: string;
   band?: any;
+  getTimeFromX?: any;
   //   onIntervalChange?: (id: string, x: number, y:number) => void;
 }
 
@@ -23,6 +24,7 @@ export const TimelineNode = ({
   nodeToShow,
   width,
   band,
+  getTimeFromX,
   ...props
 }: TimelineNodeInterface) => {
   const nodeRef = useRef(null);
@@ -37,14 +39,15 @@ export const TimelineNode = ({
   useEffect(() => setX(x as number), [x]);
   useEffect(() => setWidth(Math.max(width as number, 100)), [width]);
   useEffect(() => {
-    console.log(nodeToShow, id, xstate);
     if (nodeToShow === id) {
       const element = d3.select(nodeRef.current).node() as any;
       window.requestAnimationFrame(() => {
-        element.scrollIntoView({ block: 'center', inline: 'start', behavior: 'smooth' });
+        element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
       });
     }
   }, [id, nodeToShow, xstate]);
+
+  console.log(getTimeFromX?.()(xstate), xstate, id, interval.start, interval.end, widthstate, band);
 
   const leftDragHandler = useCallback(
     (event: any) => {
