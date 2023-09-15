@@ -37,11 +37,14 @@ export const TimelineNode = ({
   useEffect(() => setX(x as number), [x]);
   useEffect(() => setWidth(Math.max(width as number, 100)), [width]);
   useEffect(() => {
+    console.log(nodeToShow, id, xstate);
     if (nodeToShow === id) {
       const element = d3.select(nodeRef.current).node() as any;
-      element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'start' });
+      window.requestAnimationFrame(() => {
+        element.scrollIntoView({ block: 'center', inline: 'start', behavior: 'smooth' });
+      });
     }
-  }, [id, nodeToShow]);
+  }, [id, nodeToShow, xstate]);
 
   const leftDragHandler = useCallback(
     (event: any) => {
@@ -51,7 +54,7 @@ export const TimelineNode = ({
         setWidth(newWidth);
       }
     },
-    [widthstate, xstate],
+    [band, widthstate, xstate],
   );
 
   const rightDragHandler = useCallback(
@@ -59,7 +62,7 @@ export const TimelineNode = ({
       const newWidth = Math.floor((event.x - xstate) / band) * band;
       setWidth(Math.max(newWidth, band));
     },
-    [xstate],
+    [band, xstate],
   );
 
   useEffect(() => {
@@ -70,7 +73,7 @@ export const TimelineNode = ({
       onRowChange?.(id, Math.floor(event.x / band) * band + 10, Math.floor(event.y / NODE_HEIGHT) * NODE_HEIGHT + 10);
     });
     if (nodeRef.current) dragHandler(d3.select(nodeRef.current));
-  }, [id, onRowChange]);
+  }, [band, id, onRowChange]);
 
   useEffect(() => {
     const dragHandler = d3.drag().on('drag', leftDragHandler);
@@ -81,12 +84,12 @@ export const TimelineNode = ({
     d3.select(foreignRef.current).attr('width', widthstate);
     d3.select(expandLeftRef.current).attr('x', xstate);
     d3.select(expandRightRef.current).attr('x', xstate + widthstate - 10);
-  }, []);
+  }, [leftDragHandler, widthstate, xstate]);
 
   useEffect(() => {
     const dragHandler = d3.drag().on('drag', rightDragHandler);
     if (expandRightRef.current) dragHandler(d3.select(expandRightRef.current));
-  }, []);
+  }, [rightDragHandler]);
 
   return (
     <g ref={nodeRef} x={xstate} width={widthstate} y={ystate} {...props}>

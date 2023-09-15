@@ -72,12 +72,13 @@ export const Timeline = ({ nodes, nodeInView, timerange }: TimelineInterface) =>
     );
   }, [nodes, timerange, x]);
 
-  console.log(nodePositions);
-
   const color = d3.scaleOrdinal(d3.schemeSet2).domain(nodes.map((node) => node.id));
 
   useEffect(() => {
-    d3.select(todayRef.current).node()?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    d3.select(todayRef.current).node()?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'start' });
+  }, []);
+
+  useEffect(() => {
     d3.select(linesRef.current)
       .attr('width', x(maxEndTime) ?? 0 + 20)
       .attr('height', NODE_HEIGHT * nodes.length + 20);
