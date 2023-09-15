@@ -54,8 +54,7 @@ export const Timeline = ({ nodes, nodeInView, timerange }: TimelineInterface) =>
 
   const getTimeFromX = useCallback(() => {
     return d3.scaleLinear().domain([0, MAX_WIDTH]).range([minStartTime, maxEndTime]);
-  }, [MAX_WIDTH, maxEndTime, minStartTime])
-
+  }, [MAX_WIDTH, maxEndTime, minStartTime, timerange]);
 
   const [nodePositions, setNodePositions] = React.useState<
     {
@@ -179,6 +178,9 @@ export const Timeline = ({ nodes, nodeInView, timerange }: TimelineInterface) =>
               band={timerange === 'days' ? BAND_WIDTH : BAND_WIDTH / 30}
               nodeToShow={nodeInView}
               getTimeFromX={getTimeFromX}
+              onResizeNode={(id, interval) => {
+                console.log(id, interval);
+              }}
             />
           ))}
         </g>

@@ -1,6 +1,7 @@
 import React, { use, useCallback, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { NODE_HEIGHT } from './constants';
+import { get } from 'http';
 
 export interface TimelineNodeInterface extends React.SVGProps<SVGForeignObjectElement> {
   interval: {
@@ -9,6 +10,13 @@ export interface TimelineNodeInterface extends React.SVGProps<SVGForeignObjectEl
   };
   id: string;
   onRowChange?: (id: string, row: number, event: any) => void;
+  onResizeNode?: (
+    id: string,
+    interval: {
+      start: Date;
+      end: Date;
+    },
+  ) => void;
   nodeToShow?: string;
   band?: any;
   getTimeFromX?: any;
@@ -25,6 +33,7 @@ export const TimelineNode = ({
   width,
   band,
   getTimeFromX,
+  onResizeNode,
   ...props
 }: TimelineNodeInterface) => {
   const nodeRef = useRef(null);
@@ -46,6 +55,13 @@ export const TimelineNode = ({
       });
     }
   }, [id, nodeToShow, xstate]);
+
+  useEffect(() => {
+    onResizeNode?.(id, {
+      start: getTimeFromX?.()(xstate),
+      end: getTimeFromX?.()(xstate + widthstate),
+    });
+  }, [xstate, widthstate, onResizeNode, id, getTimeFromX]);
 
   console.log(getTimeFromX?.()(xstate), xstate, id, interval.start, interval.end, widthstate, band);
 
