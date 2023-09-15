@@ -89,12 +89,14 @@ export const TimelineNode = ({
   return (
     <g ref={nodeRef} x={xstate} width={widthstate} y={ystate} {...props}>
       <foreignObject x={xstate} y={ystate} width={widthstate} height={NODE_HEIGHT} ref={foreignRef} cursor={'grab'}>
-        <div
-          className={`h-full shrink w-full border border-black ${
-            isNaN(interval.end.getDay()) ? ' bg-gradient-to-r  from-red-500 ' : 'bg-red-500'
-          }`}
-        >
-          {id}
+        <div className="flex h-full flex-col mb-1 overflow-y-auto flex-grow">
+          <div className={`h-full shrink w-full border border-black bg-red-500`}>{id}</div>
+          {isNaN(interval.end?.getDate()) && <div
+            className="h-full bg-fading-overlay w-40 right-0 absolute transform top-0 bottom-0"
+            style={{
+              background: 'linear-gradient(90deg, transparent, white 100%)',
+            }}
+          />}
         </div>
       </foreignObject>
 

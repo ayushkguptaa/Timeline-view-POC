@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import * as d3 from 'd3';
 import { TimelineNode, TimelineNodeInterface } from './timeline-node';
-import { NODE_HEIGHT } from './constants';
+import { BAND_WIDTH, NODE_HEIGHT } from './constants';
 import { parts } from './data';
 import { addDays, addMonths, eachDayOfInterval, eachMonthOfInterval } from 'date-fns';
+import { getMonthsBetweenDates } from '@/utils';
 
 export interface TimelineInterface {
   nodes: TimelineNodeInterface[];
@@ -35,7 +36,12 @@ export const Timeline = ({ nodes, nodeInView }: TimelineInterface) => {
       });
   }, [nodes]);
 
-  const x = useMemo(() => d3.scaleLinear().domain([minStartTime, maxEndTime]).range([0, 10000]), []);
+  const MAX_WIDTH = BAND_WIDTH * (getMonthsBetweenDates(minStartTime, maxEndTime) + 2);
+
+  const x = useMemo(
+    () => d3.scaleLinear().domain([minStartTime, maxEndTime]).range([0, MAX_WIDTH]),
+    [MAX_WIDTH, maxEndTime, minStartTime],
+  );
 
   const [nodePositions, setNodePositions] = React.useState<
     {
@@ -58,14 +64,17 @@ export const Timeline = ({ nodes, nodeInView }: TimelineInterface) => {
       .attr('height', NODE_HEIGHT * nodes.length + 20);
     eachMonthOfInterval({
       start: minStartTime,
-      end: maxEndTime,
+      end:
+        maxEndTime > addMonths(minStartTime, Math.floor(10000 / BAND_WIDTH))
+          ? maxEndTime
+          : addMonths(minStartTime, Math.floor(10000 / BAND_WIDTH)),
     }).forEach((date, i) => {
       d3.select(linesRef.current)
         .append('text')
         .attr('x', x(date) ?? 0 + 5)
         .attr('y', 15)
         .attr('text-anchor', 'middle')
-        .text(`${date.toLocaleString('default', { month: 'short' })}`)
+        .text(`${date.toLocaleString('default', { month: 'short', year: 'numeric' })}`)
         .style('background-color', 'white');
       d3.select(linesRef.current)
         .append('line')
@@ -129,7 +138,7 @@ export const Timeline = ({ nodes, nodeInView }: TimelineInterface) => {
                 setNodePositions(newNodePosition);
               }}
               fill={color(node.id)}
-              band={x(addDays(minStartTime, 1)) - x(minStartTime)}
+              band={BAND_WIDTH / 30}
               nodeToShow={nodeInView}
             />
           ))}
