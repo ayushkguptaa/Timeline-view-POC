@@ -25,6 +25,7 @@ export default function Home() {
 
   const nodes = parts.map((part) => {
     return {
+      ...part,
       interval: {
         start: new Date(part.created_date || part.modified_date),
         end: new Date(part.actual_close_date || part.target_close_date) ?? undefined,

@@ -8,7 +8,7 @@ export const LeftNav = ({ nodes, onNodeClick }) => {
             className="h-[100px] w-40 bg-red-500 border border-black cursor-pointer"
             onClick={() => onNodeClick(node.id)}
           >
-            {node.id}
+            {node.name}
           </div>
         );
       })}

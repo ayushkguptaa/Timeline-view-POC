@@ -2,6 +2,8 @@ import React, { use, useCallback, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { NODE_HEIGHT } from './constants';
 import { get } from 'http';
+import { isInViewPort } from '@/utils';
+import { SpaceTimeContextProvider } from '@/contexts/space-time-context';
 
 export interface TimelineNodeInterface extends React.SVGProps<SVGForeignObjectElement> {
   interval: {
@@ -20,6 +22,9 @@ export interface TimelineNodeInterface extends React.SVGProps<SVGForeignObjectEl
   nodeToShow?: string;
   band?: any;
   getTimeFromX?: any;
+  scrollLeft?: number;
+  clientWidth?: number;
+  divRef?: any;
   //   onIntervalChange?: (id: string, x: number, y:number) => void;
 }
 
@@ -34,6 +39,9 @@ export const TimelineNode = ({
   band,
   getTimeFromX,
   onResizeNode,
+  scrollLeft,
+  clientWidth,
+  divRef,
   ...props
 }: TimelineNodeInterface) => {
   const nodeRef = useRef(null);
@@ -49,21 +57,22 @@ export const TimelineNode = ({
   useEffect(() => setWidth(Math.max(width as number, 100)), [width]);
   useEffect(() => {
     if (nodeToShow === id) {
-      const element = d3.select(nodeRef.current).node() as any;
       window.requestAnimationFrame(() => {
-        element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+        divRef &&
+          divRef.current.scrollTo({
+            left: xstate - 100,
+            behavior: 'smooth',
+          });
       });
     }
-  }, [id, nodeToShow, xstate]);
+  }, [nodeToShow]);
 
   useEffect(() => {
     onResizeNode?.(id, {
       start: getTimeFromX?.()(xstate),
-      end: getTimeFromX?.()(xstate + widthstate),
+      end: !isNaN(interval.end.getDay()) ? getTimeFromX?.()(xstate + widthstate) : undefined,
     });
   }, [xstate, widthstate, onResizeNode, id, getTimeFromX]);
-
-  console.log(getTimeFromX?.()(xstate), xstate, id, interval.start, interval.end, widthstate, band);
 
   const leftDragHandler = useCallback(
     (event: any) => {
@@ -109,6 +118,49 @@ export const TimelineNode = ({
     const dragHandler = d3.drag().on('drag', rightDragHandler);
     if (expandRightRef.current) dragHandler(d3.select(expandRightRef.current));
   }, [rightDragHandler]);
+
+  if (scrollLeft > xstate + widthstate) {
+    return (
+      <g x={scrollLeft} width={widthstate} y={ystate} onClick={() => console.log('left')}>
+        <foreignObject x={scrollLeft} y={ystate + 50} width={1000} height={50}>
+          <button
+            className="w-fit bg-white rounded-md"
+            onClick={() => {
+              window.requestAnimationFrame(() => {
+                divRef &&
+                  divRef.current.scrollTo({
+                    left: xstate - 100,
+                    behavior: 'smooth',
+                  });
+              });
+            }}
+          >
+            {'<<' + id}
+          </button>
+        </foreignObject>
+      </g>
+    );
+  }
+  if (scrollLeft + clientWidth < xstate) {
+    return (
+      // <foreignObject className={`right-0 top-[${ystate}px] absolute`} width={1000} height={50}>
+      <button
+        className={`w-fit bg-white rounded-md  absolute right-0 top-[${ystate + 50}px]`}
+        onClick={() => {
+          window.requestAnimationFrame(() => {
+            divRef &&
+              divRef.current.scrollTo({
+                left: xstate - 100,
+                behavior: 'smooth',
+              });
+          });
+        }}
+      >
+        {id + '>>'}
+      </button>
+      // </foreignObject>
+    );
+  }
 
   return (
     <g ref={nodeRef} x={xstate} width={widthstate} y={ystate} {...props}>

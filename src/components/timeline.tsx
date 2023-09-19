@@ -5,6 +5,7 @@ import { BAND_WIDTH, NODE_HEIGHT } from './constants';
 import { parts } from './data';
 import { addDays, addMonths, eachDayOfInterval, eachMonthOfInterval, set } from 'date-fns';
 import { getDaysBetweenDates, getMonthsBetweenDates } from '@/utils';
+import { SpaceTimeContextProvider } from '@/contexts/space-time-context';
 
 export interface TimelineInterface {
   nodes: TimelineNodeInterface[];
@@ -18,25 +19,51 @@ export const Timeline = ({ nodes, nodeInView, timerange }: TimelineInterface) =>
   const divRef = useRef<HTMLDivElement>(null);
   const linesRef = useRef<SVGGElement>(null);
   const todayRef = useRef<SVGGElement>(null);
+  const [maxEndTime, setMaxEndTime] = React.useState<Date>(new Date());
+  const [minStartTime, setMinStartTime] = React.useState<Date>(new Date());
+  const [rangeStart, setRangeStart] = React.useState<number>(0);
+  const [rangeEnd, setRangeEnd] = React.useState<number>(0);
+  const [scrollLeft, setScrollLeft] = React.useState<number>(0);
+  const [clientWidth, setClientWidth] = React.useState<number>(0);
   // const [nodes, setNodes] = React.useState<TimelineNodeInterface[]>(nodes);
-  const maxEndTime = useMemo(() => {
+
+  useEffect(() => {
+    new ResizeObserver(() => {
+      setClientWidth(divRef.current?.clientWidth ?? 0);
+    }).observe(divRef.current as any);
+  }, []);
+
+  useEffect(() => {
     const mx = nodes
       .filter((node) => node.interval.end)
       .map((node) => node.interval.end)
       .reduce(function (a, b) {
         return a > b ? a : b;
       });
-    if (timerange === 'days') return mx > addDays(new Date(), 1) ? mx : addDays(new Date(), 1);
-    else return mx > addMonths(new Date(), 1) ? mx : addMonths(new Date(), 1);
-  }, [nodes, timerange]);
+    if (timerange === 'days') setMaxEndTime(mx > addDays(new Date(), 1) ? mx : addDays(new Date(), 1));
+    else setMaxEndTime(mx > addMonths(new Date(), 1) ? mx : addMonths(new Date(), 1));
 
-  const minStartTime = useMemo(() => {
-    return nodes
-      .map((node) => node.interval.start)
-      .reduce(function (a, b) {
-        return a < b ? a : b;
-      });
-  }, [nodes]);
+    setMinStartTime(
+      timerange === 'days'
+        ? addDays(
+            nodes
+              .map((node) => node.interval.start)
+              .reduce(function (a, b) {
+                return a < b ? a : b;
+              }),
+            -20,
+          )
+        : addMonths(
+            nodes
+              .map((node) => node.interval.start)
+              .reduce(function (a, b) {
+                return a < b ? a : b;
+              }),
+            -20,
+          ),
+    );
+    divRef.current.scrollLeft += BAND_WIDTH * 20;
+  }, [nodes, timerange]);
 
   const MAX_WIDTH = useMemo(() => {
     return (
@@ -47,13 +74,18 @@ export const Timeline = ({ nodes, nodeInView, timerange }: TimelineInterface) =>
     );
   }, [maxEndTime, minStartTime, timerange]);
 
+  useEffect(() => {
+    setRangeEnd(MAX_WIDTH);
+    setRangeStart(0);
+  }, [MAX_WIDTH]);
+
   const x = useMemo(
-    () => d3.scaleLinear().domain([minStartTime, maxEndTime]).range([0, MAX_WIDTH]),
-    [MAX_WIDTH, maxEndTime, minStartTime],
+    () => d3.scaleLinear().domain([minStartTime, maxEndTime]).range([rangeStart, rangeEnd]),
+    [maxEndTime, minStartTime, rangeEnd, rangeStart],
   );
 
   const getTimeFromX = useCallback(() => {
-    return d3.scaleLinear().domain([0, MAX_WIDTH]).range([minStartTime, maxEndTime]);
+    return d3.scaleLinear().domain([rangeStart, rangeEnd]).range([minStartTime, maxEndTime]);
   }, [MAX_WIDTH, maxEndTime, minStartTime, timerange]);
 
   const [nodePositions, setNodePositions] = React.useState<
@@ -78,14 +110,19 @@ export const Timeline = ({ nodes, nodeInView, timerange }: TimelineInterface) =>
 
   const color = d3.scaleOrdinal(d3.schemeSet2).domain(nodes.map((node) => node.id));
 
-  useEffect(() => {
-    d3.select(todayRef.current).node()?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'start' });
-  }, []);
+  // useEffect(() => {
+  //   d3.select(divRef.current).node().scrollLeft = (divRef.current?.scrollLeft ?? 0) + BAND_WIDTH * 20;
+  // }, []);
 
   useEffect(() => {
     d3.select(linesRef.current)
-      .attr('width', x(maxEndTime) ?? 0 + 20)
+      .attr('width', Math.max(x(maxEndTime) - x(minStartTime) ?? 0, 10000) + 20)
       .attr('height', NODE_HEIGHT * nodes.length + 20);
+
+    d3.select(svgRef.current)
+      .attr('width', Math.max(x(maxEndTime) - x(minStartTime) ?? 0, 10000) + 20)
+      .attr('height', NODE_HEIGHT * nodes.length + 20);
+
     const d3array =
       timerange === 'days'
         ? eachDayOfInterval({
@@ -128,7 +165,31 @@ export const Timeline = ({ nodes, nodeInView, timerange }: TimelineInterface) =>
   }, [maxEndTime, minStartTime, nodes.length, timerange, x]);
 
   return (
-    <div className=" bg-white w-full h-full overflow-scroll" ref={divRef}>
+    <SpaceTimeContextProvider minStartTime={minStartTime} maxEndTime={maxEndTime} timeRange={timerange}>
+    <div
+      className=" bg-white w-full h-full overflow-scroll"
+      ref={divRef}
+      onScroll={() => {
+        // console.log(divRef.current?.scrollLeft, divRef.current?.scrollWidth, divRef.current?.offsetWidth);
+        if (
+          divRef.current &&
+          divRef.current.scrollLeft >= divRef.current?.scrollWidth - divRef.current?.offsetWidth - 10
+        ) {
+          setMaxEndTime(timerange === 'days' ? addDays(maxEndTime, 10) : addMonths(maxEndTime, 10));
+          setRangeEnd(rangeEnd + BAND_WIDTH * 10);
+        }
+        if (divRef.current && divRef.current.scrollLeft === 0) {
+          setMinStartTime(timerange === 'days' ? addDays(minStartTime, -10) : addMonths(minStartTime, -10));
+          setRangeStart(rangeStart - BAND_WIDTH * 10);
+          divRef.current.scrollLeft += BAND_WIDTH * 10;
+        }
+        setScrollLeft(divRef.current?.scrollLeft ?? 0);
+      }}
+      onResize={() => {
+        console.log(divRef.current?.getBoundingClientRect());
+        setClientWidth(divRef.current?.offsetWidth ?? 0);
+      }}
+    >
       <svg width={10000} height={NODE_HEIGHT * nodes.length + 50} overflow={'auto'} ref={svgRef}>
         {/* <rect x={0} y={0} height={NODE_HEIGHT * nodes.length + 20} width={x(new Date())} /> */}
         <defs>
@@ -139,11 +200,11 @@ export const Timeline = ({ nodes, nodeInView, timerange }: TimelineInterface) =>
         <rect width={x(new Date())} height="100%" fill="url(#dashed)" />
 
         <g ref={linesRef}></g>
-        <line x1={200} x2={200} y1={0} y2={NODE_HEIGHT * nodes.length} stroke="blue" />
+        {/* <line x1={200} x2={200} y1={0} y2={NODE_HEIGHT * nodes.length} stroke="blue" />
         <foreignObject x={100} y={20} width={200} height={100}>
           <div className=" h-10 w-full rounded-md flex justify-center items-center bg-sky-400"> Beta Launch</div>
         </foreignObject>
-        <line x1={x(new Date())} x2={x(new Date())} y1={0} y2={NODE_HEIGHT * nodes.length} stroke="blue" />
+        <line x1={x(new Date())} x2={x(new Date())} y1={0} y2={NODE_HEIGHT * nodes.length} stroke="blue" /> */}
         <foreignObject x={x(new Date()) - 100} y={20} width={200} height={100} ref={todayRef}>
           <div className=" h-10 w-full rounded-md flex justify-center items-center bg-sky-400"> {'Today'}</div>
         </foreignObject>
@@ -179,13 +240,17 @@ export const Timeline = ({ nodes, nodeInView, timerange }: TimelineInterface) =>
               nodeToShow={nodeInView}
               getTimeFromX={getTimeFromX}
               onResizeNode={(id, interval) => {
-                console.log(id, interval);
+                // console.log(id, interval);
               }}
+              scrollLeft={scrollLeft}
+              clientWidth={clientWidth}
+              divRef={divRef}
             />
           ))}
         </g>
       </svg>
       {/* <DateLines x={x}/> */}
     </div>
+    </SpaceTimeContextProvider>
   );
 };
