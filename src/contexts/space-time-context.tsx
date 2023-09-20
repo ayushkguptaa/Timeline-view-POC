@@ -1,10 +1,12 @@
-import { BAND_WIDTH } from '@/components/constants';
+import { BAND_WIDTH, NODE_HEIGHT } from '@/components/constants';
 import { getDaysBetweenDates, getMonthsBetweenDates } from '@/utils';
 import * as d3 from 'd3';
-import { createContext, useCallback, useMemo } from 'react';
+import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 export const SpaceTimeContext = createContext<{
   timeToSpaceMapper: (time: Date) => number;
   spaceToTimeMapper: (space: number) => Date;
+  setNodePosition: (id: string, newPosition: { x: number; y: number; width: number | undefined }) => void;
+  getNodePosition: (id: string) => { x: number; y: number; width: number | undefined } | undefined;
 }>(null);
 
 export interface SpaceTimeContextProvideProps {
@@ -12,6 +14,7 @@ export interface SpaceTimeContextProvideProps {
   maxEndTime: Date;
   timeRange: 'days' | 'months';
   children: React.ReactNode;
+  nodes: any[];
 }
 
 export const SpaceTimeContextProvider = ({
@@ -19,7 +22,12 @@ export const SpaceTimeContextProvider = ({
   maxEndTime,
   timeRange,
   children,
+  nodes,
 }: SpaceTimeContextProvideProps) => {
+  const [nodePositionsMap, setNodePositionsMap] = useState<
+    Map<string, { x: number; y: number; width: number | undefined }>
+  >(new Map());
+
   const MAX_WIDTH = useMemo(() => {
     return (
       BAND_WIDTH *
@@ -51,7 +59,44 @@ export const SpaceTimeContextProvider = ({
     [internalSpaceToTimeMapper],
   );
 
+  useEffect(() => {
+    setNodePositionsMap(
+      new Map(
+        nodes.map((node: { id: any; interval: { start: Date; end: Date | undefined } }, index: number) => [
+          node.id,
+          {
+            x: timeToSpaceMapper(node.interval.start),
+            y: index * NODE_HEIGHT + 50,
+            width: node.interval.end
+              ? timeToSpaceMapper(node.interval.end) - timeToSpaceMapper(node.interval.start)
+              : undefined,
+          },
+        ]),
+      ),
+    );
+  }, [nodes, timeToSpaceMapper]);
+
+  const setNodePosition = useCallback(
+    (id: string, newPosition: { x: number; y: number; width: number | undefined }) => {
+      setNodePositionsMap((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(id, newPosition);
+        return newMap;
+      });
+    },
+    [],
+  );
+
+  const getNodePosition = useCallback(
+    (id: string) => {
+      return nodePositionsMap.get(id);
+    },
+    [nodePositionsMap],
+  );
+
   return (
-    <SpaceTimeContext.Provider value={{ timeToSpaceMapper, spaceToTimeMapper }}>{children}</SpaceTimeContext.Provider>
+    <SpaceTimeContext.Provider value={{ timeToSpaceMapper, spaceToTimeMapper, setNodePosition, getNodePosition }}>
+      {children}
+    </SpaceTimeContext.Provider>
   );
 };

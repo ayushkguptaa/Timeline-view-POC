@@ -6,6 +6,7 @@ import { parts } from './data';
 import { addDays, addMonths, eachDayOfInterval, eachMonthOfInterval, set } from 'date-fns';
 import { getDaysBetweenDates, getMonthsBetweenDates } from '@/utils';
 import { SpaceTimeContextProvider } from '@/contexts/space-time-context';
+import { Navigators } from './navigators';
 
 export interface TimelineInterface {
   nodes: TimelineNodeInterface[];
@@ -165,92 +166,95 @@ export const Timeline = ({ nodes, nodeInView, timerange }: TimelineInterface) =>
   }, [maxEndTime, minStartTime, nodes.length, timerange, x]);
 
   return (
-    <SpaceTimeContextProvider minStartTime={minStartTime} maxEndTime={maxEndTime} timeRange={timerange}>
-    <div
-      className=" bg-white w-full h-full overflow-scroll"
-      ref={divRef}
-      onScroll={() => {
-        // console.log(divRef.current?.scrollLeft, divRef.current?.scrollWidth, divRef.current?.offsetWidth);
-        if (
-          divRef.current &&
-          divRef.current.scrollLeft >= divRef.current?.scrollWidth - divRef.current?.offsetWidth - 10
-        ) {
-          setMaxEndTime(timerange === 'days' ? addDays(maxEndTime, 10) : addMonths(maxEndTime, 10));
-          setRangeEnd(rangeEnd + BAND_WIDTH * 10);
-        }
-        if (divRef.current && divRef.current.scrollLeft === 0) {
-          setMinStartTime(timerange === 'days' ? addDays(minStartTime, -10) : addMonths(minStartTime, -10));
-          setRangeStart(rangeStart - BAND_WIDTH * 10);
-          divRef.current.scrollLeft += BAND_WIDTH * 10;
-        }
-        setScrollLeft(divRef.current?.scrollLeft ?? 0);
-      }}
-      onResize={() => {
-        console.log(divRef.current?.getBoundingClientRect());
-        setClientWidth(divRef.current?.offsetWidth ?? 0);
-      }}
-    >
-      <svg width={10000} height={NODE_HEIGHT * nodes.length + 50} overflow={'auto'} ref={svgRef}>
-        {/* <rect x={0} y={0} height={NODE_HEIGHT * nodes.length + 20} width={x(new Date())} /> */}
-        <defs>
-          <pattern id="dashed" width="15" height="15" patternUnits="userSpaceOnUse">
-            <line x1="15" y1="0" x2="0" y2="15" style={{ stroke: 'gray', strokeWidth: 1 }} />
-          </pattern>
-        </defs>
-        <rect width={x(new Date())} height="100%" fill="url(#dashed)" />
+    <SpaceTimeContextProvider minStartTime={minStartTime} maxEndTime={maxEndTime} timeRange={timerange} nodes={nodes}>
+      <Navigators nodes={nodes} divRef={divRef} />
+      <div
+        className=" bg-white w-full h-full overflow-scroll"
+        ref={divRef}
+        onScroll={() => {
+          // console.log(divRef.current?.scrollLeft, divRef.current?.scrollWidth, divRef.current?.offsetWidth);
+          if (
+            divRef.current &&
+            divRef.current.scrollLeft >= divRef.current?.scrollWidth - divRef.current?.offsetWidth - 10
+          ) {
+            setMaxEndTime(timerange === 'days' ? addDays(maxEndTime, 10) : addMonths(maxEndTime, 10));
+            setRangeEnd(rangeEnd + BAND_WIDTH * 10);
+          }
+          if (divRef.current && divRef.current.scrollLeft === 0) {
+            setMinStartTime(timerange === 'days' ? addDays(minStartTime, -10) : addMonths(minStartTime, -10));
+            setRangeStart(rangeStart - BAND_WIDTH * 10);
+            divRef.current.scrollLeft += BAND_WIDTH * 10;
+          }
+          setScrollLeft(divRef.current?.scrollLeft ?? 0);
+        }}
+        onResize={() => {
+          console.log(divRef.current?.getBoundingClientRect());
+          setClientWidth(divRef.current?.offsetWidth ?? 0);
+        }}
+      >
+        <svg width={10000} height={NODE_HEIGHT * nodes.length + 50} overflow={'auto'} ref={svgRef}>
+          {/* <rect x={0} y={0} height={NODE_HEIGHT * nodes.length + 20} width={x(new Date())} /> */}
+          <defs>
+            <pattern id="dashed" width="15" height="15" patternUnits="userSpaceOnUse">
+              <line x1="15" y1="0" x2="0" y2="15" style={{ stroke: 'gray', strokeWidth: 1 }} />
+            </pattern>
+          </defs>
+          <rect width={x(new Date())} height="100%" fill="url(#dashed)" />
 
-        <g ref={linesRef}></g>
-        {/* <line x1={200} x2={200} y1={0} y2={NODE_HEIGHT * nodes.length} stroke="blue" />
+          <g ref={linesRef}></g>
+          {/* <line x1={200} x2={200} y1={0} y2={NODE_HEIGHT * nodes.length} stroke="blue" />
         <foreignObject x={100} y={20} width={200} height={100}>
           <div className=" h-10 w-full rounded-md flex justify-center items-center bg-sky-400"> Beta Launch</div>
         </foreignObject>
         <line x1={x(new Date())} x2={x(new Date())} y1={0} y2={NODE_HEIGHT * nodes.length} stroke="blue" /> */}
-        <foreignObject x={x(new Date()) - 100} y={20} width={200} height={100} ref={todayRef}>
-          <div className=" h-10 w-full rounded-md flex justify-center items-center bg-sky-400"> {'Today'}</div>
-        </foreignObject>
-        <g className="h-full w-full" ref={groupRef}>
-          {nodes.map((node, i) => (
-            <TimelineNode
-              key={i}
-              interval={node.interval}
-              id={node.id}
-              y={nodePositions[i].y}
-              x={nodePositions[i].x}
-              width={
-                !isNaN(node.interval.end.getDate()) ? (x(node.interval.end) ?? 0) - (x(node.interval.start) ?? 0) : 300
-              }
-              height={NODE_HEIGHT}
-              onRowChange={(id, x, y) => {
-                const row = Math.floor(y / NODE_HEIGHT);
-                const draggedNode = nodePositions.find((node) => node.id === id);
-                const newNodePosition = nodePositions.map((nodePosition, i) => {
-                  if (Math.floor(nodePosition.y / NODE_HEIGHT) === row) {
-                    return { x: nodePosition.x, y: draggedNode?.y ?? 0, id: nodePosition.id };
-                  }
-                  if (nodePosition.id === id) {
-                    return { x: x as number, y: y as number, id: nodePosition.id };
-                  }
-                  return nodePosition;
-                });
+          <foreignObject x={x(new Date()) - 100} y={20} width={200} height={100} ref={todayRef}>
+            <div className=" h-10 w-full rounded-md flex justify-center items-center bg-sky-400"> {'Today'}</div>
+          </foreignObject>
+          <g className="h-full w-full" ref={groupRef}>
+            {nodes.map((node, i) => (
+              <TimelineNode
+                key={i}
+                interval={node.interval}
+                id={node.id}
+                y={nodePositions[i].y}
+                x={nodePositions[i].x}
+                width={
+                  !isNaN(node.interval.end.getDate())
+                    ? (x(node.interval.end) ?? 0) - (x(node.interval.start) ?? 0)
+                    : 300
+                }
+                height={NODE_HEIGHT}
+                onRowChange={(id, x, y) => {
+                  const row = Math.floor(y / NODE_HEIGHT);
+                  const draggedNode = nodePositions.find((node) => node.id === id);
+                  const newNodePosition = nodePositions.map((nodePosition, i) => {
+                    if (Math.floor(nodePosition.y / NODE_HEIGHT) === row) {
+                      return { x: nodePosition.x, y: draggedNode?.y ?? 0, id: nodePosition.id };
+                    }
+                    if (nodePosition.id === id) {
+                      return { x: x as number, y: y as number, id: nodePosition.id };
+                    }
+                    return nodePosition;
+                  });
 
-                setNodePositions(newNodePosition);
-              }}
-              fill={color(node.id)}
-              band={timerange === 'days' ? BAND_WIDTH : BAND_WIDTH / 30}
-              nodeToShow={nodeInView}
-              getTimeFromX={getTimeFromX}
-              onResizeNode={(id, interval) => {
-                // console.log(id, interval);
-              }}
-              scrollLeft={scrollLeft}
-              clientWidth={clientWidth}
-              divRef={divRef}
-            />
-          ))}
-        </g>
-      </svg>
-      {/* <DateLines x={x}/> */}
-    </div>
+                  setNodePositions(newNodePosition);
+                }}
+                fill={color(node.id)}
+                band={timerange === 'days' ? BAND_WIDTH : BAND_WIDTH / 30}
+                nodeToShow={nodeInView}
+                getTimeFromX={getTimeFromX}
+                onResizeNode={(id, interval) => {
+                  // console.log(id, interval);
+                }}
+                scrollLeft={scrollLeft}
+                clientWidth={clientWidth}
+                divRef={divRef}
+              />
+            ))}
+          </g>
+        </svg>
+        {/* <DateLines x={x}/> */}
+      </div>
     </SpaceTimeContextProvider>
   );
 };

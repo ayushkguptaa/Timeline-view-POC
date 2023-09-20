@@ -1,9 +1,7 @@
-import React, { use, useCallback, useEffect, useRef } from 'react';
+import React, { use, useCallback, useContext, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { NODE_HEIGHT } from './constants';
-import { get } from 'http';
-import { isInViewPort } from '@/utils';
-import { SpaceTimeContextProvider } from '@/contexts/space-time-context';
+import { SpaceTimeContext } from '@/contexts/space-time-context';
 
 export interface TimelineNodeInterface extends React.SVGProps<SVGForeignObjectElement> {
   interval: {
@@ -45,12 +43,17 @@ export const TimelineNode = ({
   ...props
 }: TimelineNodeInterface) => {
   const nodeRef = useRef(null);
+  const { setNodePosition } = useContext(SpaceTimeContext);
   const [xstate, setX] = React.useState<number>(x as number);
   const [widthstate, setWidth] = React.useState<number>(Math.max(width as number, 100));
   const [ystate, setY] = React.useState<number>(y as number);
   const expandLeftRef = useRef(null);
   const expandRightRef = useRef(null);
   const foreignRef = useRef(null);
+
+  useEffect(() => {
+    setNodePosition(id, { x: xstate, y: ystate, width: widthstate });
+  }, [xstate, ystate, widthstate, setNodePosition, id]);
 
   useEffect(() => setY(y as number), [y]);
   useEffect(() => setX(x as number), [x]);
@@ -118,49 +121,6 @@ export const TimelineNode = ({
     const dragHandler = d3.drag().on('drag', rightDragHandler);
     if (expandRightRef.current) dragHandler(d3.select(expandRightRef.current));
   }, [rightDragHandler]);
-
-  if (scrollLeft > xstate + widthstate) {
-    return (
-      <g x={scrollLeft} width={widthstate} y={ystate} onClick={() => console.log('left')}>
-        <foreignObject x={scrollLeft} y={ystate + 50} width={1000} height={50}>
-          <button
-            className="w-fit bg-white rounded-md"
-            onClick={() => {
-              window.requestAnimationFrame(() => {
-                divRef &&
-                  divRef.current.scrollTo({
-                    left: xstate - 100,
-                    behavior: 'smooth',
-                  });
-              });
-            }}
-          >
-            {'<<' + id}
-          </button>
-        </foreignObject>
-      </g>
-    );
-  }
-  if (scrollLeft + clientWidth < xstate) {
-    return (
-      // <foreignObject className={`right-0 top-[${ystate}px] absolute`} width={1000} height={50}>
-      <button
-        className={`w-fit bg-white rounded-md  absolute right-0 top-[${ystate + 50}px]`}
-        onClick={() => {
-          window.requestAnimationFrame(() => {
-            divRef &&
-              divRef.current.scrollTo({
-                left: xstate - 100,
-                behavior: 'smooth',
-              });
-          });
-        }}
-      >
-        {id + '>>'}
-      </button>
-      // </foreignObject>
-    );
-  }
 
   return (
     <g ref={nodeRef} x={xstate} width={widthstate} y={ystate} {...props}>
